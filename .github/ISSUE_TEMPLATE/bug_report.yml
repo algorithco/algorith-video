@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a reproducible problem with AlgorithVideo.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve AlgorithVideo. Search existing issues first and use public or synthetic media for reproduction.
+        **Do not include API keys, authentication tokens, private recordings, or unredacted logs.** Report suspected vulnerabilities privately using the [security policy](https://github.com/algorithco/algorith-video/security/policy).
+  - type: input
+    id: version
+    attributes:
+      label: AlgorithVideo version
+      description: Find the version in Settings → About. For a source checkout, include the commit if known.
+      placeholder: "0.1.0 or a commit hash"
+    validations:
+      required: true
+  - type: input
+    id: operating_system
+    attributes:
+      label: Operating system and architecture
+      placeholder: "Windows 11, x64"
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: How are you running the app?
+      options:
+        - Windows installer
+        - Source checkout (npm run dev)
+        - Locally packaged build
+        - Other (describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the workflow, relevant settings, and a public source or instructions for creating synthetic media. Explain whether the problem happens consistently.
+      placeholder: |
+        1. Open ...
+        2. Choose ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the exact visible error and the stage where it occurred. Redact private information.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots and additional context
+      description: Attach only sanitized screenshots or the smallest relevant redacted diagnostic excerpt. Include tool versions if the issue involves Python, FFmpeg, or yt-dlp.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: This report contains no credentials, private media, or sensitive personal information.
+          required: true
+        - label: This is a bug report, not an undisclosed security vulnerability.
+          required: true

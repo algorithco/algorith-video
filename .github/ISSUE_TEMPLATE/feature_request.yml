@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest an improvement to AlgorithVideo.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the problem you want to solve and the behavior that would help. Search existing requests first. Do not include private recordings, credentials, or personal information.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the workflow, who is affected, and what is difficult with the current behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the experience you would expect. Examples or a simple mockup can help.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
+      description: Explain what you tried or other approaches that could address the problem.
+  - type: textarea
+    id: considerations
+    attributes:
+      label: Additional context
+      description: Mention relevant accessibility, privacy, provider-cost, platform, or compatibility considerations.
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for a similar request.
+          required: true
+        - label: This request contains no credentials, private media, or sensitive personal information.
+          required: true

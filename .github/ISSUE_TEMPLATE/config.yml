@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/algorithco/algorith-video/security/policy
+    about: Follow the private reporting instructions. Do not disclose vulnerabilities in public issues.
+  - name: Read the user guide
+    url: https://github.com/algorithco/algorith-video/blob/main/docs/usage.md
+    about: Setup, clipping workflows, the editor, and publishing documentation.

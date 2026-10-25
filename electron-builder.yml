@@ -1,0 +1,87 @@
+appId: com.algorithco.algorithvideo
+productName: AlgorithVideo
+artifactName: AlgorithVideo-${version}-${os}-${arch}.${ext}
+copyright: Copyright © 2026 Algorithco
+
+# Disable production debug/code-injection entry points and validate app.asar.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**/*
+  - "!out/**/*.map"
+  - package.json
+
+# The Python bridge runner is invoked by the main process via child_process.spawn.
+# It must live OUTSIDE app.asar so the filesystem path is directly readable by
+# the Python interpreter. pipeline-runner.ts#getBridgeRunnerPath() looks it up
+# via process.resourcesPath when app.isPackaged is true.
+extraResources:
+  - from: out/renderer/THIRD_PARTY_LICENSES.txt
+    to: RENDERER-THIRD-PARTY-LICENSES.txt
+  - from: LICENSE
+    to: LICENSE
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  - from: src/renderer/assets/fonts/Geist-OFL.txt
+    to: Geist-OFL.txt
+  - from: bridge
+    to: bridge
+    filter:
+      - "**/*.py"
+      - "**/*.txt"
+      - "!**/test_*.py"
+  - from: engine
+    to: engine
+    filter:
+      - "clip_engine/**/*"
+      - "assets/**/*"
+      - "requirements.txt"
+      - "requirements.lock"
+      - "LICENSE"
+      - "THIRD_PARTY_NOTICES.md"
+      - "!**/__pycache__"
+      - "!**/*.pyc"
+  - from: engine-venv
+    to: engine-venv
+    filter:
+      - "**/*"
+  - from: engine-bin
+    to: engine-bin
+    filter:
+      - "**/*"
+      - "!ffplay.exe"
+      - "!LOCAL-PROVENANCE.json"
+      - "!**/*.obj"
+
+extraMetadata:
+  main: ./out/main/index.js
+
+# AlgorithVideo is distributed only as a Windows x64 desktop app.
+win:
+  verifyUpdateCodeSignature: true
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+
+
+# Local distribution only. Configure Algorithco signing and a release feed before publishing.
+publish: null
