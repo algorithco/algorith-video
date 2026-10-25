@@ -213,6 +213,7 @@ algorithvideo/scripts/release-artifacts.test.cjs
 algorithvideo/scripts/release/build-launcher.ps1
 algorithvideo/scripts/release/collect-artifacts.cjs
 algorithvideo/scripts/release/collect-desktop-release.cjs
+algorithvideo/scripts/release/download-artifacts.py
 algorithvideo/scripts/release/refresh-metadata.cjs
 algorithvideo/scripts/release/runtime-lock.json
 algorithvideo/scripts/release/smoke-desktop.cjs
@@ -222,6 +223,7 @@ algorithvideo/scripts/release/stage-media-sources.py
 algorithvideo/scripts/release/stage-python-runtime.py
 algorithvideo/scripts/release/stage-release-assets.cjs
 algorithvideo/scripts/release/stage-runtime.py
+algorithvideo/scripts/release/test-download-artifacts.py
 algorithvideo/scripts/release/verify-runtime.py
 algorithvideo/scripts/release/verify-windows.ps1
 algorithvideo/scripts/release/windows-config.cjs

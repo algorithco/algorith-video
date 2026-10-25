@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: desktop-release-${{ github.ref }}
@@ -52,6 +53,8 @@ jobs:
       - run: npm run lint
       - name: Release contract regressions
         run: node --test tests/main/brand.test.cjs scripts/release-artifacts.test.cjs scripts/desktop-release.test.cjs
+      - name: Artifact integrity regressions
+        run: python scripts/release/test-download-artifacts.py
 
   sources:
     name: Preserve corresponding media sources
@@ -143,10 +146,9 @@ jobs:
       - run: npm ci
       - name: Get verified corresponding sources
         if: matrix.platform != 'macos'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: media-sources
-          path: media-sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/release/download-artifacts.py --name media-sources --output media-sources
       - name: Stage Windows or Linux runtime
         if: matrix.platform != 'macos'
         run: python scripts/release/stage-runtime.py
@@ -241,6 +243,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      actions: read
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
@@ -255,10 +258,12 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: npm ci --ignore-scripts
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          path: release-inputs
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - name: Download complete verified native artifacts
+        run: python scripts/release/download-artifacts.py --output release-inputs
       - name: Validate complete release and generate SHA256 sums
         run: node scripts/release/collect-desktop-release.cjs release-inputs publish "$RELEASE_VERSION" "$SOURCE_SHA"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
