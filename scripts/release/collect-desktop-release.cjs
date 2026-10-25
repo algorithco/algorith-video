@@ -11,14 +11,45 @@ const targets = {
   'linux-x64': { os: 'linux', arch: 'x64', extensions: ['AppImage', 'deb'] }
 }
 
-function sha256(file) {
+function sha256(file, combined) {
   const hash = crypto.createHash('sha256'), buffer = Buffer.alloc(1024 * 1024)
   const descriptor = fs.openSync(file, 'r')
   try {
     let read
-    while ((read = fs.readSync(descriptor, buffer, 0, buffer.length, null)) > 0) hash.update(buffer.subarray(0, read))
+    while ((read = fs.readSync(descriptor, buffer, 0, buffer.length, null)) > 0) {
+      const chunk = buffer.subarray(0, read)
+      hash.update(chunk)
+      if (combined) combined.update(chunk)
+    }
     return hash.digest('hex')
   } finally { fs.closeSync(descriptor) }
+}
+
+function sourceAssets(directory, archive, reconstruction) {
+  if (!archive || !/^ffmpeg-sources-windows-linux\.tar\.(xz|gz)$/.test(archive.name)
+    || !Number.isSafeInteger(archive.size) || archive.size <= 0 || !/^[a-f0-9]{64}$/.test(archive.sha256)) throw new Error('Invalid corresponding-source archive')
+  const parts = archive.parts === undefined ? [{ name: archive.name, size: archive.size, sha256: archive.sha256 }] : archive.parts
+  if (!Array.isArray(parts) || parts.length === 0) throw new Error('Missing corresponding-source archive parts')
+  const combined = crypto.createHash('sha256'), inputs = []
+  let total = 0
+  for (const [index, part] of parts.entries()) {
+    const expectedName = archive.parts === undefined ? archive.name : `${archive.name}.part${String(index + 1).padStart(2, '0')}`
+    if (!part || part.name !== expectedName || !Number.isSafeInteger(part.size) || part.size <= 0 || part.size >= 2_000_000_000
+      || !/^[a-f0-9]{64}$/.test(part.sha256)) throw new Error('Invalid corresponding-source archive part')
+    const file = path.join(directory, part.name)
+    if (!fs.lstatSync(file).isFile() || fs.statSync(file).size !== part.size || sha256(file, combined) !== part.sha256) throw new Error('Corresponding-source archive hash mismatch')
+    inputs.push({ file, name: part.name })
+    total += part.size
+  }
+  if (total !== archive.size || combined.digest('hex') !== archive.sha256) throw new Error('Combined corresponding-source archive hash mismatch')
+  if (archive.parts !== undefined) {
+    const name = 'SOURCE-RECONSTRUCTION.txt', file = path.join(directory, name)
+    if (!reconstruction || reconstruction.name !== name || !Number.isSafeInteger(reconstruction.size) || reconstruction.size <= 0
+      || !/^[a-f0-9]{64}$/.test(reconstruction.sha256) || !fs.lstatSync(file).isFile()
+      || fs.statSync(file).size !== reconstruction.size || sha256(file) !== reconstruction.sha256) throw new Error('Invalid source reconstruction instructions')
+    inputs.push({ file, name })
+  }
+  return inputs
 }
 
 function collect(root, output, version, sourceSha) {
@@ -31,10 +62,7 @@ function collect(root, output, version, sourceSha) {
   const lock = require('./runtime-lock.json')
   if (sourceManifest.recipe_commit !== lock.ffmpeg.windows.build_commit || sourceManifest.ffmpeg_commit !== lock.ffmpeg.source_commit) throw new Error('Wrong corresponding-source revision')
   const archive = sourceManifest.archive
-  if (!archive || !/^ffmpeg-sources-windows-linux\.tar\.(xz|gz)$/.test(archive.name)) throw new Error('Invalid corresponding-source archive')
-  const sourceArchiveFile = path.join(sourceDirectory, archive.name)
-  if (!fs.lstatSync(sourceArchiveFile).isFile() || fs.statSync(sourceArchiveFile).size !== archive.size || sha256(sourceArchiveFile) !== archive.sha256) throw new Error('Corresponding-source archive hash mismatch')
-  inputs.push({ file: sourceArchiveFile, name: archive.name }, { file: sourceManifestFile, name: 'ffmpeg-source-manifest.json' })
+  inputs.push(...sourceAssets(sourceDirectory, archive, sourceManifest.reconstruction), { file: sourceManifestFile, name: 'ffmpeg-source-manifest.json' })
   for (const [target, contract] of Object.entries(targets)) {
     const directory = path.join(root, target)
     const evidence = JSON.parse(fs.readFileSync(path.join(directory, `verification-${target}.json`), 'utf8'))

@@ -66,7 +66,14 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
+      - name: Restore pinned media source bundle
+        id: source-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: media-sources
+          key: media-sources-v1-${{ hashFiles('scripts/release/runtime-lock.json', 'scripts/release/stage-media-sources.py') }}
       - name: Download pinned FFmpeg and dependency sources
+        if: steps.source-cache.outputs.cache-hit != 'true'
         run: python scripts/release/stage-media-sources.py --output media-sources
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -93,28 +100,18 @@ jobs:
             platform: linux
             arch: x64
             builder: --linux --x64
-          - id: mac-arm64
-            runner: macos-15
-            platform: macos
-            arch: arm64
-            builder: --mac --arm64
-          - id: mac-x64
-            runner: macos-15-intel
-            platform: macos
-            arch: x64
-            builder: --mac --x64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
-    env:
+    env: &native-release-env
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       AWS_EC2_METADATA_DISABLED: 'true'
       SOURCE_SHA: ${{ github.sha }}
       ALGORITHVIDEO_WORK_ROOT: ${{ github.workspace }}/.ci-work/release
       ALGORITHVIDEO_MEDIA_SOURCES_DIR: ${{ github.workspace }}/media-sources
-    defaults:
+    defaults: &native-release-defaults
       run:
         shell: bash
-    steps:
+    steps: &native-release-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
@@ -213,9 +210,34 @@ jobs:
           compression-level: 0
           retention-days: 14
 
+  build-macos:
+    name: Native ${{ matrix.id }}
+    # macOS builds its own FFmpeg and sources; run it while the shared
+    # Windows/Linux source bundle is being downloaded instead of waiting.
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: mac-arm64
+            runner: macos-15
+            platform: macos
+            arch: arm64
+            builder: --mac --arm64
+          - id: mac-x64
+            runner: macos-15-intel
+            platform: macos
+            arch: x64
+            builder: --mac --x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env: *native-release-env
+    defaults: *native-release-defaults
+    steps: *native-release-steps
+
   publish:
     name: Publish verified desktop release
-    needs: [prepare, sources, build]
+    needs: [prepare, sources, build, build-macos]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
