@@ -1,6 +1,6 @@
 # AlgorithVideo local development
 
-The source repository is [algorithco/algorith-video](https://github.com/algorithco/algorith-video). The product is **AlgorithVideo 0.1.0 for Windows x64**, maintained by **Algorithco**. Binary update hosting and a publisher signing identity are not configured.
+The source repository is [algorithco/algorith-video](https://github.com/algorithco/algorith-video). **AlgorithVideo 0.1.0** is maintained by **Algorithco**, with desktop release targets for Windows x64, macOS arm64/x64 and Linux x64. Automatic updates and publisher signing identities are not configured for the first release.
 
 ## Start
 
@@ -8,11 +8,11 @@ After completing the fresh-checkout setup in [README](../README.md), run `npm ru
 
 Use **Settings → System check** to verify tools, then add your own OpenRouter key. Making real clips requires provider credit. Rendering runs locally.
 
-For a fresh Windows setup, use the commands in [README](../README.md). Windows x64 is the distribution target for this release.
+For a fresh Windows setup, use the commands in [README](../README.md). The [development guide](development.md) also includes macOS/Linux environment commands.
 
 ## Local media tools
 
-`engine-bin/` is ignored by Git. Media archives must be verified against their recorded SHA256. `engine-bin/RUNTIME-PROVENANCE.json` records the staged FFmpeg source. An installable release additionally requires a relocatable Python distribution in `engine-venv/`, the yt-dlp launcher and bundled notices; follow [Windows packaging](RELEASING.md).
+`engine-bin/` is ignored by Git. Media archives must be verified against their recorded SHA256. `engine-bin/RUNTIME-PROVENANCE.json` records staged Windows/Linux FFmpeg sources; macOS builds bundle their FFmpeg source archive and dependency notices. An installable release additionally requires a relocatable Python distribution in `engine-venv/`, the yt-dlp launcher and bundled notices. The [release workflow](RELEASING.md) stages and verifies these files on GitHub runners.
 
 For command-line media tests on this Windows checkout:
 
@@ -39,4 +39,4 @@ A new profile writes settings under the AlgorithVideo application data directory
 
 ## Build
 
-`npm run build` creates `out/`. `npm run preview` runs that build locally. `npm run dist` creates the Windows x64 NSIS installer after runtime staging. Installer and verification details are in [RELEASING](RELEASING.md).
+`npm run build` creates `out/`. `npm run preview` runs that source build locally. Desktop installer builds and publication run through GitHub Actions, as described in [RELEASING](RELEASING.md).

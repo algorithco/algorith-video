@@ -1,6 +1,11 @@
 node_modules/
 out/
 dist/
+/release-assets/
+/release-sources/
+/media-sources/
+/release-inputs/
+/publish/
 .env
 .env.local
 .env.*

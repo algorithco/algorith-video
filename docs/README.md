@@ -19,7 +19,7 @@
 - [Architecture](ARCHITECTURE.md): process boundaries, data flow and clipping engine.
 - [Design system](../DESIGN.md): interface and visual conventions.
 - [Brand assets](../scripts/icon/README.md): original artwork and export tooling.
-- [Windows packaging](RELEASING.md): runtime staging, installer checks and signing.
+- [Desktop releases](RELEASING.md): native GitHub Actions builds for Windows, macOS and Linux, runtime staging, package checks and signing status.
 - [Distribution readiness](OPEN_SOURCE_READINESS.md): source publication versus binary acceptance.
 
 ## Project policies

@@ -9,13 +9,26 @@
 <p align="center">
   <a href="https://github.com/algorithco/algorith-video/actions/workflows/ci.yml"><img src="https://github.com/algorithco/algorith-video/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="License: MIT" /></a>
-  <img src="https://img.shields.io/badge/desktop-Windows%20x64-0078D4.svg" alt="Windows x64" />
+  <img src="https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-0078D4.svg" alt="Windows, macOS and Linux" />
 </p>
 <p align="center"><a href="docs/README.md">Documentation</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="https://github.com/algorithco/algorith-video/issues/new/choose">Report a bug or request a feature</a> · <a href="SECURITY.md">Security</a></p>
 
 AlgorithVideo turns podcasts, interviews, tutorials and streams into short clips with captions. Import a local video or a supported public link, let AI find candidate moments, refine the result and render on your own computer.
 
-**Current version: 0.1.0. Supported desktop distribution: Windows x64.** This repository contains the Electron app, Python engine, tests and build tooling. Signed installers and automatic updates are not configured; see [packaging](docs/RELEASING.md) before distributing a binary.
+**Current version: 0.1.0.** The desktop release workflow builds Windows, macOS and Linux packages on native GitHub Actions runners. This repository contains the Electron app, Python engine, tests and release tooling. Code signing, macOS notarization and automatic updates are not configured for this first release.
+
+## Download the desktop app
+
+Open [GitHub Releases](https://github.com/algorithco/algorith-video/releases/latest) and choose the package for your system. The release workflow produces:
+
+| System | Architecture | Package |
+| --- | --- | --- |
+| Windows | x64 | `.exe` installer |
+| macOS | Apple Silicon / arm64 | `.dmg` and `.zip` |
+| macOS | Intel / x64 | `.dmg` and `.zip` |
+| Linux | x64 | `.AppImage` and `.deb` |
+
+Packages include Python, FFmpeg, ffprobe and yt-dlp; development tools are not needed to run them. The first packages are unsigned; macOS bundles use ad-hoc signing and are not notarized. Operating systems may show an unverified-publisher warning. Published assets include SHA-256 checksums. See the [release guide](docs/RELEASING.md) for verification and release status details.
 
 ![AlgorithVideo Create screen](docs/assets/algorithvideo-create.png)
 
@@ -65,11 +78,11 @@ To make your first clips:
 
 Provider keys are stored with your operating system's secure storage and entered in the app. YouTube previews, downloads and web tools also make network requests. Jev review, additional visual context and source research are optional in Settings; **Review & edit always uses Jev**. Provider retention policies and charges are controlled by those services. Read [AI, costs and privacy](docs/ai-and-privacy.md) before processing sensitive media.
 
-## Build a Windows installer
+## Desktop releases
 
-`npm run build` compiles the app into `out/`. After staging the relocatable Python and media runtime, `npm run dist` creates `dist/AlgorithVideo-0.1.0-win-x64.exe`. The NSIS installer includes the Python engine, FFmpeg, ffprobe and yt-dlp.
+Installers are built in [GitHub Actions](https://github.com/algorithco/algorith-video/actions/workflows/release.yml). Native Windows, macOS and Linux jobs stage the locked runtimes, create packages and verify them. A final job collects the complete set and publishes the GitHub release. No local installer build is needed for this process.
 
-Installer builds use `--publish never`; they do not upload a release. Review runtime provenance, bundled licenses, installation checks and signing requirements in [Windows packaging](docs/RELEASING.md).
+`npm run build` remains the source-build check for contributors. Read [Releasing AlgorithVideo](docs/RELEASING.md) for the release workflow, required artifacts and future signing requirements.
 
 ## Explore the project
 
