@@ -11,7 +11,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -21,8 +20,104 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[2]
 RECIPES_REPOSITORY = "https://github.com/BtbN/FFmpeg-Builds.git"
 FFMPEG_REPOSITORY = "https://github.com/FFmpeg/FFmpeg.git"
-MAX_RELEASE_ASSET_BYTES = 2_000_000_000
+SOURCE_ARCHIVE_NAME = "ffmpeg-sources-windows-linux.tar.gz"
+SOURCE_PART_BYTES = 1_800_000_000
+RECONSTRUCTION_NAME = "SOURCE-RECONSTRUCTION.txt"
 NOTICE_NAME = re.compile(r"^(licen[sc]e|copying|copyright|notice|unlicen[sc]e)(?:[._-]|$)", re.I)
+
+
+class SplitArchiveWriter:
+    """Hash a tar stream and write bounded release assets without a full copy."""
+
+    def __init__(self, directory, name, part_bytes=SOURCE_PART_BYTES):
+        if (not isinstance(part_bytes, int) or isinstance(part_bytes, bool)
+                or part_bytes <= 0 or part_bytes > SOURCE_PART_BYTES):
+            raise ValueError("Source part size must be between 1 and 1,800,000,000 bytes")
+        self.directory, self.name, self.part_bytes = Path(directory), name, part_bytes
+        self.parts, self.size, self.checksum = [], 0, hashlib.sha256()
+        self.current, self.current_size, self.current_checksum = None, 0, None
+        self.closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+    def _close_part(self):
+        if self.current is not None:
+            self.current.close()
+            self.parts.append({"name": Path(self.current.name).name, "size": self.current_size,
+                               "sha256": self.current_checksum.hexdigest()})
+            self.current = None
+
+    def write(self, data):
+        if self.closed:
+            raise ValueError("Cannot write a closed source archive")
+        remaining = memoryview(data)
+        length = len(remaining)
+        while remaining:
+            if self.current is None:
+                self.current = (self.directory / f"{self.name}.part{len(self.parts) + 1:02d}").open("xb")
+                self.current_size, self.current_checksum = 0, hashlib.sha256()
+            piece = remaining[:self.part_bytes - self.current_size]
+            if self.current.write(piece) != len(piece):
+                raise OSError("Incomplete source archive write")
+            self.current_checksum.update(piece)
+            self.checksum.update(piece)
+            self.current_size += len(piece)
+            self.size += len(piece)
+            remaining = remaining[len(piece):]
+            if self.current_size == self.part_bytes:
+                self._close_part()
+        return length
+
+    def close(self):
+        self._close_part()
+        self.closed = True
+
+    def record(self):
+        if not self.closed or not self.parts:
+            raise RuntimeError("Source archive stream is incomplete")
+        return {"name": self.name, "size": self.size, "sha256": self.checksum.hexdigest(), "parts": self.parts}
+
+
+def reconstruction_text(archive):
+    parts = " ".join(f"'{part['name']}'" for part in archive["parts"])
+    powershell_parts = ", ".join(f"'{part['name']}'" for part in archive["parts"])
+    return f"""AlgorithVideo Windows/Linux FFmpeg corresponding sources
+
+Download every numbered part listed below, this file, and ffmpeg-source-manifest.json
+from the same GitHub release into one empty directory. Run the commands there.
+The parts form one gzip-compressed tar archive; individual parts cannot be extracted.
+Expected reconstructed archive: {archive['name']}
+Expected size: {archive['size']} bytes
+Expected SHA-256: {archive['sha256']}
+
+POSIX shell (Linux; sha256sum must be available):
+set -eu
+set -C
+cat -- {parts} > '{archive['name']}'
+printf '%s  %s\\n' '{archive['sha256']}' '{archive['name']}' | sha256sum --check - &&
+tar -xzf '{archive['name']}'
+
+PowerShell (Windows):
+$ErrorActionPreference = 'Stop'
+$sourceParts = @({powershell_parts})
+$sourceArchive = [System.IO.File]::Open((Join-Path (Get-Location) '{archive['name']}'), [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write)
+try {{
+    foreach ($sourcePart in $sourceParts) {{
+        $sourceInput = [System.IO.File]::OpenRead((Join-Path (Get-Location) $sourcePart))
+        try {{ $sourceInput.CopyTo($sourceArchive) }} finally {{ $sourceInput.Dispose() }}
+    }}
+}} finally {{ $sourceArchive.Dispose() }}
+if ((Get-FileHash -LiteralPath '{archive['name']}' -Algorithm SHA256).Hash.ToLowerInvariant() -ne '{archive['sha256']}') {{ throw 'Source archive SHA-256 mismatch' }}
+if ((Get-Item -LiteralPath '{archive['name']}').Length -ne {archive['size']}) {{ throw 'Source archive size mismatch' }}
+tar -xzf '{archive['name']}'
+
+Keep all numbered parts and the manifest together when redistributing sources.
+The manifest records the size and SHA-256 of each part and the complete archive.
+"""
 
 
 def digest(path):
@@ -113,7 +208,7 @@ def stage(output):
         clone_commit(RECIPES_REPOSITORY, recipe_commit, recipes)
         clone_commit(FFMPEG_REPOSITORY, ffmpeg_commit, ffmpeg)
         environment = {**os.environ, "GITHUB_REPOSITORY": "BtbN/FFmpeg-Builds"}
-        # This upstream script only downloads immutable dependency sources.
+        # This upstream script only downloads the pinned dependency sources.
         # Its base image supplies git/download/cargo tools, not app artifacts.
         run(["bash", "download.sh"], cwd=recipes, env=environment, timeout=5400)
         sources = sorted(path for path in (recipes / ".cache/downloads").glob("*.tar.xz")
@@ -140,20 +235,23 @@ def stage(output):
                  "files": index_files, "notices": notices}
         index_path = work / "source-index.json"
         write_json(index_path, index)
-        archive = output / "ffmpeg-sources-windows-linux.tar.gz"
-        with tarfile.open(archive, "w:gz", compresslevel=1) as bundle:
-            for directory, label in ((recipes, "build-recipes"), (ffmpeg, "FFmpeg")):
-                for path in source_files(directory):
-                    bundle.add(path, arcname=f"{label}/{path.relative_to(directory).as_posix()}", recursive=False)
-            for source in sources:
-                bundle.add(source, arcname=f"dependency-sources/{source.name}", recursive=False)
-            bundle.add(output / "THIRD_PARTY_LICENSES", arcname="THIRD_PARTY_LICENSES")
-            bundle.add(index_path, arcname="source-index.json")
-        if archive.stat().st_size >= MAX_RELEASE_ASSET_BYTES:
-            raise RuntimeError("Source archive exceeds the release asset limit; split it before publication")
+        with SplitArchiveWriter(output, SOURCE_ARCHIVE_NAME) as split:
+            with tarfile.open(fileobj=split, mode="w|gz", compresslevel=1) as bundle:
+                for directory, label in ((recipes, "build-recipes"), (ffmpeg, "FFmpeg")):
+                    for path in source_files(directory):
+                        bundle.add(path, arcname=f"{label}/{path.relative_to(directory).as_posix()}", recursive=False)
+                for source in sources:
+                    bundle.add(source, arcname=f"dependency-sources/{source.name}", recursive=False)
+                bundle.add(output / "THIRD_PARTY_LICENSES", arcname="THIRD_PARTY_LICENSES")
+                bundle.add(index_path, arcname="source-index.json")
+        archive = split.record()
+        reconstruction = output / RECONSTRUCTION_NAME
+        reconstruction.write_text(reconstruction_text(archive), encoding="utf-8", newline="\n")
         manifest = {"schema": 1, "recipe_commit": recipe_commit, "ffmpeg_commit": ffmpeg_commit,
                     "recipe_repository": RECIPES_REPOSITORY, "ffmpeg_repository": FFMPEG_REPOSITORY,
-                    "archive": {"name": archive.name, "size": archive.stat().st_size, "sha256": digest(archive)},
+                    "archive": archive,
+                    "reconstruction": {"name": reconstruction.name, "size": reconstruction.stat().st_size,
+                                       "sha256": digest(reconstruction)},
                     "source_index_sha256": digest(index_path), "notices": notices}
         write_json(output / "source-manifest.json", manifest)
     print(json.dumps({"archive": manifest["archive"], "dependency_snapshots": len(sources),

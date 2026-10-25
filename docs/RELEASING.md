@@ -15,6 +15,8 @@ Desktop packages are built and verified in [GitHub Actions](https://github.com/a
 
 The current package version is `0.1.0`, corresponding to the release tag `v0.1.0`. Each desktop package includes the application, clipping engine, standalone Python, FFmpeg, ffprobe and the yt-dlp launcher. The build must stage native dependencies for the same architecture as its Electron package; a development virtual environment is not a relocatable release runtime.
 
+Windows/Linux corresponding sources can exceed GitHub's per-asset limit. They are published as numbered `ffmpeg-sources-windows-linux.tar.gz.partNN` files with `SOURCE-RECONSTRUCTION.txt` and `ffmpeg-source-manifest.json`. Download every part, concatenate them in the recorded order, and verify the combined archive digest before extraction. Installers do not require these source files. The workflow caches the complete source bundle by its source pins and collection script; staging and publication still verify the cached bytes against the source manifest.
+
 ## Start a release in GitHub
 
 1. Merge the intended source and dependency changes into `main`. Confirm its source CI checks have passed.
