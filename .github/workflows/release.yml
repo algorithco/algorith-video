@@ -100,28 +100,18 @@ jobs:
             platform: linux
             arch: x64
             builder: --linux --x64
-          - id: mac-arm64
-            runner: macos-15
-            platform: macos
-            arch: arm64
-            builder: --mac --arm64
-          - id: mac-x64
-            runner: macos-15-intel
-            platform: macos
-            arch: x64
-            builder: --mac --x64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
-    env:
+    env: &native-release-env
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       AWS_EC2_METADATA_DISABLED: 'true'
       SOURCE_SHA: ${{ github.sha }}
       ALGORITHVIDEO_WORK_ROOT: ${{ github.workspace }}/.ci-work/release
       ALGORITHVIDEO_MEDIA_SOURCES_DIR: ${{ github.workspace }}/media-sources
-    defaults:
+    defaults: &native-release-defaults
       run:
         shell: bash
-    steps:
+    steps: &native-release-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
@@ -220,9 +210,34 @@ jobs:
           compression-level: 0
           retention-days: 14
 
+  build-macos:
+    name: Native ${{ matrix.id }}
+    # macOS builds its own FFmpeg and sources; run it while the shared
+    # Windows/Linux source bundle is being downloaded instead of waiting.
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: mac-arm64
+            runner: macos-15
+            platform: macos
+            arch: arm64
+            builder: --mac --arm64
+          - id: mac-x64
+            runner: macos-15-intel
+            platform: macos
+            arch: x64
+            builder: --mac --x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env: *native-release-env
+    defaults: *native-release-defaults
+    steps: *native-release-steps
+
   publish:
     name: Publish verified desktop release
-    needs: [prepare, sources, build]
+    needs: [prepare, sources, build, build-macos]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
