@@ -24,18 +24,20 @@ async function main() {
   const blocked = new Set(['PATH', 'PYTHONPATH', 'PYTHONHOME', 'VIRTUAL_ENV', 'ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL', 'NODE_OPTIONS'])
   const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !blocked.has(key.toUpperCase())))
   environment.PATH = process.platform === 'win32' ? `${process.env.SystemRoot}\\system32;${process.env.SystemRoot}` : '/usr/bin:/bin:/usr/sbin:/sbin'
-  let child, browser
+  let child, browser, launchError
   try {
     const args = [`--user-data-dir=${profile}`, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding']
     // The GitHub Ubuntu runner restricts unprivileged user namespaces.
     // This exception is for the isolated synthetic acceptance process only.
     if (process.platform === 'linux') args.push('--no-sandbox')
     child = spawn(executable, args, { env: environment, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    child.once('error', error => { launchError = error })
     let errors = ''
     child.stderr.on('data', chunk => { errors = (errors + chunk.toString()).slice(-8000) })
     child.stdout.resume()
     const portFile = path.join(profile, 'DevToolsActivePort'), deadline = Date.now() + 60000
     while (!fs.existsSync(portFile)) {
+      if (launchError) throw new Error(`Packaged app could not start: ${launchError.message}`)
       if (child.exitCode !== null) throw new Error(`Packaged app exited: ${child.exitCode}. ${errors}`)
       if (Date.now() > deadline) throw new Error(`Packaged app did not become ready. ${errors}`)
       await pause(200)

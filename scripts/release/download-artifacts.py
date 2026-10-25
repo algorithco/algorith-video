@@ -117,8 +117,16 @@ def download_zip(api, repository, artifact, token, destination):
         raise ArtifactError("Artifact ZIP SHA-256 mismatch")
 
 
+def member_digest(bundle, member):
+    checksum = hashlib.sha256()
+    with bundle.open(member) as content:
+        while block := content.read(1024 * 1024):
+            checksum.update(block)
+    return checksum.digest()
+
+
 def zip_members(bundle):
-    members, names = [], {}
+    members, names, exact_names, checksums = [], {}, set(), {}
     for member in bundle.infolist():
         # ZipInfo normalizes backslashes on Windows and truncates NUL bytes;
         # validate the original stored name before relying on its parsed path.
@@ -131,30 +139,47 @@ def zip_members(bundle):
                        or re.fullmatch(r"(?i)(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?", part) for part in parts)):
             raise ArtifactError("Artifact ZIP contains an unsafe member path")
         key = normalized.casefold()
-        if key in names:
+        if normalized in exact_names:
             raise ArtifactError("Artifact ZIP contains duplicate member paths")
+        exact_names.add(normalized)
         mode = member.external_attr >> 16
         kind = stat.S_IFMT(mode)
         if kind not in (0, stat.S_IFREG, stat.S_IFDIR) or (kind == stat.S_IFDIR and not member.is_dir()):
             raise ArtifactError("Artifact ZIP contains a symlink or special file")
-        names[key] = member.is_dir()
-        members.append((member, parts))
+        alias = key in names
+        if alias:
+            previous = names[key]
+            if previous.is_dir() != member.is_dir() or previous.file_size != member.file_size:
+                raise ArtifactError("Artifact ZIP contains conflicting case-only member aliases")
+            if key not in checksums:
+                checksums[key] = member_digest(bundle, previous)
+            if checksums[key] != member_digest(bundle, member):
+                raise ArtifactError("Artifact ZIP contains conflicting case-only member aliases")
+        else:
+            names[key] = member
+        members.append((member, parts, alias))
     for key in names:
         parent = PurePosixPath(key).parent
         while parent != PurePosixPath("."):
-            if parent.as_posix() in names and not names[parent.as_posix()]:
+            if parent.as_posix() in names and not names[parent.as_posix()].is_dir():
                 raise ArtifactError("Artifact ZIP contains conflicting file/directory paths")
             parent = parent.parent
     return members
 
 
-def extract_zip(archive, destination):
+def extract_zip(archive, destination, case_sensitive=None):
+    case_sensitive = os.name != "nt" if case_sensitive is None else case_sensitive
     with zipfile.ZipFile(archive) as bundle:
         members = zip_members(bundle)
         if bundle.testzip() is not None:
             raise ArtifactError("Artifact ZIP CRC verification failed")
         destination.mkdir()
-        for member, parts in members:
+        for member, parts, alias in members:
+            if alias and not case_sensitive:
+                # The member bytes were checked above. A Windows path resolves
+                # either spelling to the first file; opening it again would
+                # overwrite or fail despite identical verified contents.
+                continue
             target = destination.joinpath(*parts)
             if member.is_dir():
                 target.mkdir(parents=True, exist_ok=True)

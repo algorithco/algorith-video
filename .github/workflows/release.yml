@@ -55,6 +55,8 @@ jobs:
         run: node --test tests/main/brand.test.cjs scripts/release-artifacts.test.cjs scripts/desktop-release.test.cjs
       - name: Artifact integrity regressions
         run: python scripts/release/test-download-artifacts.py
+      - name: Mac source integrity regressions
+        run: python scripts/release/test-verify-mac-sources.py
 
   sources:
     name: Preserve corresponding media sources
@@ -264,6 +266,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Download complete verified native artifacts
         run: python scripts/release/download-artifacts.py --output release-inputs
+      - name: Verify matching macOS source payloads
+        run: python scripts/release/verify-mac-sources.py --root release-inputs --source-sha "$SOURCE_SHA"
       - name: Validate complete release and generate SHA256 sums
         run: node scripts/release/collect-desktop-release.cjs release-inputs publish "$RELEASE_VERSION" "$SOURCE_SHA"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -158,6 +158,36 @@ class DownloadTests(unittest.TestCase):
                 HELPER.download(self.root / "result", "media-sources", self.environment)
         self.assertEqual(self.blob_requests, [])
 
+    def test_identical_case_aliases_are_verified_before_platform_extraction(self):
+        entries = [("notices/", b""), ("NOTICES/", b""),
+                   ("notices/LICENSE", b"Identical fixture license"), ("notices/license", b"Identical fixture license")]
+        content = zip_bytes(entries)
+        archive = self.root / "case-aliases.zip"
+        archive.write_bytes(content)
+        with zipfile.ZipFile(archive) as bundle:
+            self.assertEqual([alias for _, _, alias in HELPER.zip_members(bundle)], [False, True, False, True])
+        # Exercise the Windows policy on this host without requiring a
+        # case-sensitive filesystem: equivalent aliases are written once.
+        windows = self.root / "windows-policy"
+        HELPER.extract_zip(archive, windows, case_sensitive=False)
+        self.assertEqual((windows / "notices/LICENSE").read_bytes(), b"Identical fixture license")
+        self.assertEqual(len(list((windows / "notices").iterdir())), 1)
+        if HELPER.os.name != "nt":
+            linux = self.root / "linux-policy"
+            HELPER.extract_zip(archive, linux, case_sensitive=True)
+            self.assertTrue((linux / "notices/LICENSE").is_file())
+            self.assertTrue((linux / "notices/license").is_file())
+        for index, invalid in enumerate(([('same', 'one'), ('same', 'one')],
+                                          [('a', 'one'), ('A', 'two')],
+                                          [('a/', b''), ('A', b'')],
+                                          [('a', 'one'), ('A/child', 'one')])):
+            with self.subTest(index=index):
+                bad = self.root / f"case-conflict-{index}.zip"
+                with mock.patch('warnings.warn'):
+                    bad.write_bytes(zip_bytes(invalid))
+                with self.assertRaises(HELPER.ArtifactError):
+                    HELPER.extract_zip(bad, self.root / f"case-conflict-{index}")
+
     def test_publisher_commits_output_only_after_every_artifact_verifies(self):
         first = zip_bytes([("good", "fixture")])
         second = zip_bytes([("bad", "expected")])
