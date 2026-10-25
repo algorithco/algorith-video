@@ -2,7 +2,7 @@
 
 AlgorithVideo is an Algorithco adaptation of MIT-licensed upstream source; see [source attribution](docs/ATTRIBUTION.md) and [LICENSE](LICENSE). It does not change the licenses of bundled components.
 
-The version rows below describe runtime packaging recipes. Native binaries and development environments are excluded from the source repository; actual staged FFmpeg provenance is recorded in the ignored `engine-bin/LOCAL-PROVENANCE.json` or `engine-bin/RUNTIME-PROVENANCE.json`. A signed public binary release requires the additional reviews in [RELEASING.md](docs/RELEASING.md).
+The version rows below describe runtime packaging recipes. Native binaries and development environments are excluded from the source repository. The GitHub release workflow stages native runtimes on its Windows, macOS and Linux runners. Windows/Linux provenance is recorded in `engine-bin/RUNTIME-PROVENANCE.json`; macOS builds include the verified FFmpeg source archive and caption-library inventory. Review the exact release's corresponding-source material and dependency notices as described in [RELEASING.md](docs/RELEASING.md).
 
 | Component | Source and terms | Shipped notice |
 | --- | --- | --- |
@@ -19,4 +19,4 @@ The renderer build also generates `RENDERER-THIRD-PARTY-LICENSES.txt` in the pac
 
 The OpusClip wordmark in `src/renderer/components/brand/OpusClipLogo.tsx` comes from [opus.pro](https://www.opus.pro/) and identifies the service in comparison details. It remains an OpusClip brand asset; AlgorithVideo's MIT license does not grant rights to that mark or imply affiliation.
 
-The release packages the clipping engine committed in this repository. `scripts/prepare-resources.sh` and release CI stage the same pinned Python archive and hash-verified FFmpeg source. The final package still needs an asset and dependency license review, a signed/notarized install check, and a review of the generated inventories before publication.
+The release packages the clipping engine committed in this repository. Runtime staging uses pinned standalone Python archives and hash-verified media archives or source builds. Review the generated inventories and actual bundled assets for each release. First-release packages are unsigned, with ad-hoc signing on macOS and no notarization; signed/notarized acceptance is a separate requirement before claiming a publisher-signed release or enabling automatic updates.

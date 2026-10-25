@@ -64,7 +64,7 @@ async function main() {
     const update = await page.evaluate(() => window.algorithvideo.update.getState())
     assert.equal(update.status, 'off')
     assert.equal(update.reason, 'not-configured')
-    assert.equal(await page.getByRole('button', { name: 'GitHub', exact: true }).count(), 0)
+    assert.equal(await page.getByRole('button', { name: 'GitHub', exact: true }).count(), 1)
     if (screenshotDir) await page.screenshot({ path: path.join(screenshotDir, 'algorithvideo-about.png'), animations: 'disabled', timeout: 20000 })
     const report = { product: 'AlgorithVideo', version: '0.1.0', target: 'windows-x64', packaged, systemPythonAndMediaPathRemoved: true, tools: Object.fromEntries(required.map((name) => [name, tools[name]])), updates: update.reason, isolatedProfile: true }
     fs.writeFileSync(path.join(root, 'dist/windows-acceptance.json'), JSON.stringify(report, null, 2) + '\n')

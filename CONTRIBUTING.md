@@ -5,13 +5,13 @@ AlgorithVideo is maintained by [Algorithco](https://github.com/algorithco). Cont
 ## Before you start
 
 - Search the [existing issues](https://github.com/algorithco/algorith-video/issues) before reporting a bug or proposing a feature.
-- For bugs, include the application version, Windows version, installation method, and steps that work with a public or synthetic video. Describe what you expected and what happened.
+- For bugs, include the application version, operating system and architecture, installation method, and steps that work with a public or synthetic video. Describe what you expected and what happened.
 - For substantial changes, open a feature request explaining the problem and proposed behavior before starting implementation. A discussion helps avoid duplicated work and changes that do not fit the project.
 - Report suspected vulnerabilities privately using [SECURITY.md](SECURITY.md). Do not publish an exploit, real credentials, private video, or unredacted logs in an issue or pull request.
 
 ## Set up a development checkout
 
-The supported installer target is Windows x64. Development requires Node.js 22 or a newer version supported by the dependencies, Python 3.12, and FFmpeg/ffprobe with the libass-backed `ass` caption filter.
+Desktop release targets are Windows x64, macOS arm64/x64 and Linux x64. Development requires Node.js 22 or a newer version supported by the dependencies, Python 3.12, and FFmpeg/ffprobe with the libass-backed `ass` caption filter. Release installers are built by native GitHub Actions runners.
 
 Fork the repository, then run the following in PowerShell, replacing `YOUR-USERNAME` with your GitHub username:
 
@@ -26,7 +26,7 @@ engine/.venv/Scripts/python.exe -m pip install --require-hashes -r engine/requir
 npm run dev
 ```
 
-Development detects the Python environment in `engine/.venv` and media tools in `engine-bin/`; otherwise it checks `PATH`. Check **Settings → System check** after launching. See the [development guide](docs/development.md) for the project layout and [Windows packaging](docs/RELEASING.md) for creating an installer.
+Development detects the Python environment in `engine/.venv` and media tools in `engine-bin/`; otherwise it checks `PATH`. Check **Settings → System check** after launching. The [development guide](docs/development.md) includes macOS/Linux environment commands. Use the [GitHub release workflow](docs/RELEASING.md) to create and verify desktop packages.
 
 The mocked test suites use isolated app profiles and do not need real provider credentials. Creating real clips uses your own OpenRouter account and credit; publishing uses your own Zernio account. Review [AI and privacy](docs/ai-and-privacy.md) before using private media. Enter credentials in the app rather than source files or test fixtures.
 
@@ -57,7 +57,7 @@ engine/.venv/Scripts/python.exe -m pip install --require-hashes -r scripts/pytho
 engine/.venv/Scripts/python.exe -m pytest -q engine/tests
 ```
 
-Media tests need FFmpeg and ffprobe on `PATH`. End-to-end interface tests are available through `npm run test:e2e`; run them for changes to the affected desktop flow. Installer or bundled-runtime changes also need the acceptance checks in [Windows packaging](docs/RELEASING.md).
+Media tests need FFmpeg and ffprobe on `PATH`. End-to-end interface tests are available through `npm run test:e2e`; run them for changes to the affected desktop flow. Installer or bundled-runtime changes also need the native runner acceptance checks in [the release guide](docs/RELEASING.md).
 
 Document failures, skipped checks, and environment limitations in the pull request. Do not describe a check as passed if it did not finish. For documentation-only changes, check links, commands, and Markdown rendering instead of running unrelated application tests.
 

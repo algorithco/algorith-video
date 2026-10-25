@@ -65,7 +65,7 @@ extraResources:
 extraMetadata:
   main: ./out/main/index.js
 
-# AlgorithVideo is distributed only as a Windows x64 desktop app.
+# Native release jobs build each platform on its matching GitHub-hosted runner.
 win:
   verifyUpdateCodeSignature: true
   target:
@@ -82,6 +82,25 @@ nsis:
   uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico
 
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.video
+  icon: build/icon.icns
+  identity: '-'
+  hardenedRuntime: false
+  notarize: false
 
-# Local distribution only. Configure Algorithco signing and a release feed before publishing.
+linux:
+  target:
+    - AppImage
+    - deb
+  executableName: algorithvideo
+  category: AudioVideo
+  icon: build/icon.png
+  maintainer: Algorithco <otashdev1@gmail.com>
+
+# GitHub Actions publishes verified release assets explicitly after all jobs pass.
+# Automatic updater downloads remain disabled until a signed feed is configured.
 publish: null
