@@ -133,7 +133,16 @@ jobs:
           sudo apt-get install --yes --no-install-recommends patchelf libfuse2t64 xvfb
       - name: macOS native tools
         if: matrix.platform == 'macos'
-        run: brew install pkg-config libass nasm
+        run: |
+          brew install pkg-config libass nasm
+          # Source archives must match every copied caption library, including
+          # satisfied dependencies left over from the runner image.
+          caption_formulae=(libass)
+          while IFS= read -r formula; do
+            [[ -n "$formula" ]] && caption_formulae+=("$formula")
+          done < <(brew deps --installed --formula libass)
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 HOMEBREW_NO_INSTALL_CLEANUP=1 \
+            brew upgrade --formula "${caption_formulae[@]}"
       - run: npm ci
       - name: Get verified corresponding sources
         if: matrix.platform != 'macos'
