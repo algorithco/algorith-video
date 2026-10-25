@@ -224,6 +224,8 @@ algorithvideo/scripts/release/stage-python-runtime.py
 algorithvideo/scripts/release/stage-release-assets.cjs
 algorithvideo/scripts/release/stage-runtime.py
 algorithvideo/scripts/release/test-download-artifacts.py
+algorithvideo/scripts/release/test-verify-mac-sources.py
+algorithvideo/scripts/release/verify-mac-sources.py
 algorithvideo/scripts/release/verify-runtime.py
 algorithvideo/scripts/release/verify-windows.ps1
 algorithvideo/scripts/release/windows-config.cjs
