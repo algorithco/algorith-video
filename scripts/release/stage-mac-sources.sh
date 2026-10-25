@@ -14,6 +14,7 @@ esac
 cd "$(dirname "$0")/../.."
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_ANALYTICS=1
+unset HOMEBREW_FORCE_API_AUTO_UPDATE
 python3 - "$arch" <<'PY'
 import hashlib
 import json
@@ -108,12 +109,25 @@ with tempfile.TemporaryDirectory(prefix='algorithvideo-mac-sources-') as tempora
 
     records = []
     cellar = Path(run('brew', '--cellar')).resolve()
+    # The runner's install/upgrade step and the copied dylibs use its existing
+    # API snapshot. An empty cache would fetch newer formula metadata during
+    # source collection and could select a different version of those sources.
+    # Copy API metadata only, never the runner's download/bottle cache.
+    runner_api = Path(run('brew', '--cache')).resolve() / 'api'
+    api_snapshot = work / 'api-snapshot'
+    if runner_api.is_dir() and not runner_api.is_symlink():
+        for metadata in runner_api.rglob('*'):
+            if metadata.is_file() and metadata.suffix in {'.json', '.txt'}:
+                copy_regular(metadata, api_snapshot / metadata.relative_to(runner_api))
     for formula, version in sorted(formulae.items()):
         # A new isolated cache for every formula avoids collecting a developer
         # cache, other formulae's bottles, or unrelated runner downloads.
         cache = work / 'source-caches' / formula
         cache.mkdir(parents=True)
+        if api_snapshot.is_dir():
+            shutil.copytree(api_snapshot, cache / 'api')
         env = dict(os.environ, HOMEBREW_CACHE=str(cache), HOMEBREW_NO_AUTO_UPDATE='1', HOMEBREW_NO_ANALYTICS='1')
+        env.pop('HOMEBREW_FORCE_API_AUTO_UPDATE', None)
         info_text = run('brew', 'info', '--json=v2', '--formula', formula, env=env)
         values = json.loads(info_text).get('formulae', [])
         if len(values) != 1 or values[0].get('name') != formula:

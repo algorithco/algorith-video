@@ -49,6 +49,19 @@ test('the Windows installer artifact records the fresh product version and archi
   assert.equal(packager.expandArtifactNamePattern({}, 'exe', Arch.x64), 'AlgorithVideo-0.1.0-win-x64.exe')
 })
 
+test('Linux target architecture aliases retain the public x64 release filenames', () => {
+  const { PlatformPackager } = require('app-builder-lib/out/platformPackager')
+  const { Platform } = require('app-builder-lib')
+  const { Arch } = require('builder-util')
+  const config = yaml.load(fs.readFileSync(path.join(__dirname, '../electron-builder.yml'), 'utf8'))
+  const packager = { config, platformSpecificBuildOptions: config.linux, appInfo: { version: '0.1.0' }, platform: Platform.LINUX }
+  for (const method of ['artifactPatternConfig', 'expandArtifactNamePattern', 'computeArtifactName', 'expandMacro']) {
+    packager[method] = PlatformPackager.prototype[method]
+  }
+  assert.equal(packager.expandArtifactNamePattern({}, 'AppImage', Arch.x64), 'AlgorithVideo-0.1.0-linux-x64.AppImage')
+  assert.equal(packager.expandArtifactNamePattern({}, 'deb', Arch.x64), 'AlgorithVideo-0.1.0-linux-x64.deb')
+})
+
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'algorithvideo-artifacts-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
