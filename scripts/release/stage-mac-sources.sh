@@ -24,7 +24,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 root = Path.cwd().resolve()
 arch = sys.argv[1]
@@ -67,6 +67,26 @@ def copy_regular(source, destination):
         raise RuntimeError(f'Expected a regular source file: {source.name}')
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
+
+def collect_formula_file(info, relative, checksum, destination):
+    # API-only Homebrew installations have no homebrew/core checkout, so
+    # `brew cat` cannot reliably provide the recipe. Preserve the source at the
+    # exact API revision and verify the API's checksum before archiving it.
+    path = PurePosixPath(relative)
+    revision = info.get('tap_git_head', '')
+    if (info.get('tap') != 'homebrew/core' or not re.fullmatch(r'[0-9a-f]{40}', revision)
+            or path.is_absolute() or '..' in path.parts or not path.parts
+            or not re.fullmatch(r'[A-Za-z0-9@+._/-]+', relative)
+            or not re.fullmatch(r'[0-9a-f]{64}', checksum)):
+        raise RuntimeError('Invalid checksum-pinned Homebrew source location')
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    url = f'https://raw.githubusercontent.com/Homebrew/homebrew-core/{revision}/{path.as_posix()}'
+    subprocess.run(['curl', '--fail', '--show-error', '--location', '--retry', '3', url,
+                    '--output', str(destination)], check=True)
+    with destination.open('rb') as stream:
+        actual = hashlib.file_digest(stream, 'sha256').hexdigest()
+    if actual != checksum:
+        raise RuntimeError(f'Homebrew source checksum mismatch: {relative}')
 
 source_sha = run('git', 'rev-parse', 'HEAD')
 if not re.fullmatch(r'[0-9a-f]{40}', source_sha):
@@ -112,10 +132,15 @@ with tempfile.TemporaryDirectory(prefix='algorithvideo-mac-sources-') as tempora
         target = payload / 'homebrew' / formula
         target.mkdir(parents=True)
         (target / 'formula-info.json').write_text(info_text + '\n', encoding='utf-8')
-        recipe = run('brew', 'cat', '--formula', formula, env=env)
-        if not recipe:
-            raise RuntimeError(f'Missing source build recipe: {formula}')
-        (target / f'{formula}.rb').write_text(recipe + '\n', encoding='utf-8')
+        recipe_path = info.get('ruby_source_path', '')
+        recipe_checksum = info.get('ruby_source_checksum', {}).get('sha256', '')
+        if not recipe_path.startswith('Formula/') or not recipe_path.endswith('.rb'):
+            raise RuntimeError(f'Missing source build recipe location: {formula}')
+        collect_formula_file(info, recipe_path, recipe_checksum, target / f'{formula}.rb')
+        for patch_path, checksum in sorted(info.get('local_patch_checksums', {}).items()):
+            if not patch_path.startswith('Patches/'):
+                raise RuntimeError(f'Unexpected formula patch location: {formula}')
+            collect_formula_file(info, patch_path, checksum, target / patch_path)
         installed_recipe = keg / '.brew' / f'{formula}.rb'
         if installed_recipe.is_file():
             copy_regular(installed_recipe, target / 'installed-formula.rb')
@@ -123,8 +148,8 @@ with tempfile.TemporaryDirectory(prefix='algorithvideo-mac-sources-') as tempora
         if receipt.is_file():
             copy_regular(receipt, target / 'INSTALL_RECEIPT.json')
 
-        # Includes formula resources and external patches; inline DATA patches
-        # remain in the formula recipe captured above.
+        # Includes formula resources and external patches. Inline DATA patches
+        # remain in the recipe, while repository-local patches were saved above.
         subprocess.run(['brew', 'fetch', '--formula', '--build-from-source', '--retry', formula], env=env, check=True)
         main_source = Path(run('brew', '--cache', '--formula', '--build-from-source', formula, env=env))
         if not main_source.exists() or not main_source.resolve().is_relative_to(cache):
