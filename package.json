@@ -67,7 +67,7 @@
     "js-yaml": "^5.5.0",
     "lucide-react": "^0.468.0",
     "playwright-core": "1.64.1",
-    "postcss": "^8.5.30",
+    "postcss": "^8.5.31",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.1.0",
